@@ -49,8 +49,174 @@ void drawHPBar(double x, double y, double hp_per,int vertical);
 void loadGraphHandles();
 void drawHPCircle(double x, double y, double hp_per, double size_per);
 void drawUI(Player p);
-void gameStage1(int count, Player *p, int *fairy1, int *fairy2);
+void gameStage1( Player *p);
 void gameEnd(Player *p);
+/*namespace movPattern {
+	//moveのパターン
+	typedef struct {
+		//x,yは座標,vx,vyは各方向の速度
+		double x,y,vx,vy;
+	}constant;
+
+	typedef struct {
+		constant base;//等速のパラメータ
+		//ax,ayは各方向の加速度,vkx,vkyは各方向の終端速度
+		double ax, ay,vkx,vky;
+	}accelarate;
+
+	typedef struct {
+		constant base;//等速のパラメータ
+		//t0停滞開始時刻,dt停滞時間
+		int t0,dt;
+	}back;
+
+	constant init(double x,double y,double v,int theta);
+	accelarate init(double x, double y, double v,double vk, int theta,double a);
+	back init(double x, double y, double v, int theta, int t0, int dt);
+}
+namespace barragePattern {
+	//barrageのパターン
+	typedef struct {
+		//x,yは座標,vx,vyは各方向の速度
+		double x, y, vx, vy;
+		//damageは弾の威力
+		int damage;
+	}single;
+
+	typedef struct {
+		single base;//等速のパラメータ
+		//ax,ayは各方向の加速度,vkx,vkyは各方向の終端速度
+		double ax, ay, vkx, vky;
+	}singleAcc;
+	single init(double x, double y, double v, int theta,int damage);
+	singleAcc init(double x, double y, double v, double vk, int theta, double a,int damage);
+}
+
+enum Move {
+	constant,
+	accelarate,
+	back
+};
+enum Barrage {
+	single,
+	singleAcc,
+	singleRand,
+};
+template<typename T>
+void genEnemy(int cnt,Move movPattern, Barrage barPattern,int EnemHandle,T param);
+template<typename T>
+void genEnemy(int cnt, Move movPattern, Barrage barPattern, int EnemHandle, T param) {
+	switch(Move){
+		
+	}
+}*/
+//動作パターンの構造体
+namespace MOVE {
+	enum MoveType {
+		constant,
+		accelarate,
+		stop
+	};
+}
+
+typedef struct {
+	MOVE::MoveType ptn;
+	double vx, vy, ax, ay;
+	int dt;
+}MovePtn;
+MovePtn initMoveConstant(double v,int degree) {
+	using namespace MOVE;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	MovePtn move = { constant,v*cos0,v*sin0 };
+	return move;
+}
+MovePtn initMoveAccelarate(double v, double a, int degree) {
+	using namespace MOVE;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	MovePtn move = { accelarate,v*cos0,v*sin0 ,a*cos0,a*sin0 };
+	return move;
+}
+MovePtn initMoveStop(int dt) {
+	using namespace MOVE;
+	MovePtn move = { stop};
+	move.dt = dt;
+	return move;
+}
+//弾のパターンの構造体
+namespace BULLET {
+	enum BulletType {
+		constant,
+		accelarate
+	};
+}
+typedef struct {
+	BULLET::BulletType ptn;
+	double vx, vy, ax, ay;
+	int damage, color;
+}BulletPtn;
+BulletPtn initBulletConstant(double v, int degree,int color=COLOR::white,int damage=1) {
+	using namespace BULLET;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	BulletPtn bullet = { constant,v*cos0,v*sin0 };
+	bullet.damage = damage, bullet.color = color;
+	return bullet;
+}
+BulletPtn initBulletAccelarate(double v,double a, int degree, int color = COLOR::white, int damage = 1) {
+	using namespace BULLET;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	BulletPtn bullet = { accelarate,v*cos0,v*sin0 ,a*cos0,a*sin0};
+	bullet.damage = damage, bullet.color = color;
+	return bullet;
+}
+//敵パターンの構造体
+typedef struct {
+	MovePtn move;
+	BulletPtn bullet;
+	int hp,handle;
+}EnemyPtn;
+EnemyPtn initEnemy(int hp,MovePtn mv, BulletPtn bl,int handle=NULL) {
+	EnemyPtn e = { mv,bl,hp,handle };
+	return e;
+}
+//stage1のパターン
+namespace STG1 {
+	//動きのパターン
+	MovePtn mv1 = initMoveConstant(5, 90);
+	MovePtn mv2 = initMoveAccelarate(5,0.1, 90);
+	//弾のパターン
+	BulletPtn bl1 = initBulletConstant(1, 90);
+	BulletPtn bl2 = initBulletAccelarate(2,-0.01 ,90);
+	//敵のパターン
+	EnemyPtn fairy1 = initEnemy(10,mv1,bl1);
+}
+//WorldCounter
+typedef struct {
+	int count;//ステージのカウンタ
+	int index;//時系列敵データのインデクス
+}WldCounter;
+WldCounter *counter=NULL;
+void initWldCounter() {
+	if (!counter) {
+		counter = (WldCounter*)malloc(sizeof(WldCounter));
+	}
+	counter->count = 0, counter->index = 0;
+}
+//敵の生成関数(配列データから生成(cntは小さい順のリストを想定))
+int genEnemies(int *cnt, double *x, double *y, EnemyPtn *ePtn,int n=1) {
+	if (n == counter->index)return 0;
+	while (cnt[counter->index] == counter->count) {
+		int i = counter->index;
+		Enemy e = { x[i],y[i],ePtn[i] };
+		addEnemy(e);
+		counter->index++;
+		if (n == counter->index)break;
+	}
+
+}
 
 /*メイン関数*/
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -70,7 +236,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	int fairy2[2] = { fairy[2],fairy[3] };//赤色の妖精
 
 
-	int count = 0;//ステージカウント
+	
 				  /*メインループ*/
 	while (1) {
 		if (ProcessMessage() != 0) {//メッセージ処理
@@ -86,7 +252,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			if (keys->nowKeys[KEY_INPUT_SPACE])scene = stage1;
 			break;
 		case stage1:
-			gameStage1(count,&p,fairy1,fairy2);
+			gameStage1(&p,fairy1,fairy2);
 			if (p.hp == 0)scene = ending;
 			break;
 		case ending:
@@ -102,37 +268,35 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		if (scene == end)
 			break;
 		updateKeys();
-		count++;
+		counter->count++;
 		ScreenFlip();//裏画面を表画面に反映
 	}
 	DxLib_End(); // DXライブラリ終了処理
 	return 0;
 }
 
-void gameStage1(int count,Player *p,int *fairy1,int *fairy2) {
+void gameStage1(Player *p) {
 	/*以下に描画処理を書く*/
-	drawEnemy(count);//敵の描画処理
+	drawEnemy();//敵の描画処理
 	drawPlayer(p);
 	drawPlayerBullet();
 	drawEnemyBullet();
 	/*以下に更新(+補正)処理を書く*/
 	calcEnemy();//敵の計算処理
-	movePlayer(p, count);//プレイヤーの動作
+	movePlayer(p);//プレイヤーの動作
 	calcPlayerBullet();
 	calcEnemyBullet();
-	//敵を2通り作る
-	Enemy e1 = { 0,0,1,1,100,30,100,100,0.7,fairy1 };
-	Enemy e2 = { MX,MY,-1,-1,100,30,100,100,0.7,fairy2 };
-	if (count % 60 == 0) {
-		addEnemy(e1);
-	}
-	else if (count % 60 == 30) {
-		addEnemy(e2);
-	}
+	int cnt[] = { 0,100,100,200,300,300,400,500,500 };
+	double x[] = { 0,MX,0,MX,0,MX,0,MX,0 };
+	double y[] = { 0,10,10,20,20,30,40,40,50 };
+	using namespace STG1;
+	EnemyPtn ePtn[] = {fairy1,fairy1,fairy1,fairy1,fairy1,fairy1,fairy1,fairy1,fairy1 };
+	int n = 9;
+	genEnemies(cnt,x,y,ePtn,n);
 
 	//ここから弾を生み出す処理
-	createPlayerShot(p, count);
-	createEnemyShot(*p, count);
+	createPlayerShot(p);
+	createEnemyShot(*p);
 	collisionEnemyAndPlayerShot();//敵-プレイヤー弾のコリジョン処理
 	collisionPlayerAndEnemyShot(p);//プレイヤー-敵弾のコリジョン処理
 	collisionPlayerAndEnemy(p);//プレイヤー-敵のコリジョン処理
@@ -310,23 +474,7 @@ void calcEnemyBullet() {
 
 	}
 }
-void createEnemyShot(Player p, int count) {
-	Bullet b = { 0, 0, 4, 0, 5 ,GetColor(255,255,255) };//弾データ
-	if (count % 60 == 0) {//(0,30...)のタイミング
-		Elist *itr = eHead;
-		int j;
-		//全ての敵でループ
-		while (itr != NULL) {
-			b.x = itr->e.x, b.y = itr->e.y;//敵の座標に重ねる
-			double v = hypot(b.vx, b.vy);
-			double rad = getAngle(b, p) / 180 * PI;
-			b.vx = v * cos(rad), b.vy = v * sin(rad);
-			addEnemyBullet(b);//弾を追加
 
-			itr = itr->next;
-		}
-	}
-}
 //弾からプレイヤーへの角度を度数法で返す
 double getAngle(Bullet b, Player p) {
 	double rad = atan2(p.y - b.y, p.x - b.x);
@@ -383,15 +531,15 @@ void calcPlayerBullet() {
 	}
 }
 
-void createPlayerShot(Player *p, int count) {
+void createPlayerShot(Player *p) {
 	int isPush = keys->state[KEY_INPUT_Z] == pushNow;//zを押したか
 	int isPull = keys->state[KEY_INPUT_Z] == pullNow;//zを離したか
-	int isEnoughInterval = p->sCount + p->interval <= count;//連打していないか
-	if (isPull)p->sCount = count;//発射タイミングの基準を更新
-	if (isPush&&isEnoughInterval) p->sCount = count;//発射タイミングの基準を更新
+	int isEnoughInterval = p->sCount + p->interval <= counter->count;//連打していないか
+	if (isPull)p->sCount = counter->count;//発射タイミングの基準を更新
+	if (isPush&&isEnoughInterval) p->sCount = counter->count;//発射タイミングの基準を更新
 
 	if (!keys->nowKeys[KEY_INPUT_Z]) return;//zキーを押すかつ
-	if (!((count - p->sCount) % p->interval == 0)) return;//インターバル内なら
+	if (!((counter->count - p->sCount) % p->interval == 0)) return;//インターバル内なら
 
 														  //以下はショットの決定と生成
 	Bullet b1 = { p->x - 10, p->y, 0, -5, 5 ,GetColor(255,0,0) };//弾データを用意
@@ -407,18 +555,18 @@ int isInWall(double x, double y, double blank) {
 }
 
 //敵の描画処理
-void drawEnemy(int count) {
+void drawEnemy() {
 	int sum = 0;//リストの要素数
 	Elist *itr = eHead;//ヘッドのポインタをコピー
 	while (itr != NULL) {//末尾まで回す
 						 //画像の描画
-		if (count % 30 < 15) {
+		if (counter->count % 30 < 15) {
 			DrawRotaGraph(itr->e.x, itr->e.y, itr->e.exRate, 0, itr->e.graph[0], 1);
 		}
 		else {
 			DrawRotaGraph(itr->e.x, itr->e.y, itr->e.exRate, 0, itr->e.graph[1], 1);
 		}
-		drawHPCircle(itr->e.x, itr->e.y, itr->e.hp / 100.0,0.4);
+		drawHPCircle(itr->e.x, itr->e.y, itr->e.ptn.hp / 100.0,0.4);
 		itr = itr->next;//進める
 		sum++;
 	}
@@ -428,7 +576,7 @@ void drawEnemy(int count) {
 void calcEnemy() {
 	Elist *itr = eHead;
 	while (itr != NULL) {//末尾まで
-		itr->e.x += itr->e.vx;//x方向の移動
+		itr->e.x += itr->e.ptn.move;//x方向の移動
 		itr->e.y += itr->e.vy;//y方向の移動
 
 		if (itr->e.hp>0 && isInWall(itr->e.x, itr->e.y, 100)) {//生きているかつ範囲内にいる場合
@@ -493,12 +641,12 @@ int Btwn(int p1, int p, int p2) {
 		return 1;
 	return 0;
 }
-void movePlayer(Player *p, int count) {
+void movePlayer(Player *p) {
 	int index, interval = 15;//画像のインデックスとアニメーションの間隔
 							 //フレームごとのアニメーション画像の基準を指定
-	if (count%interval < interval / 3)
+	if (counter->count%interval < interval / 3)
 		index = 0;
-	else if (count%interval < interval / 3 * 2)
+	else if (counter->count%interval < interval / 3 * 2)
 		index = 3;
 	else {
 		index = 6;

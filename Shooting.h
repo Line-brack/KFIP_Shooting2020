@@ -37,7 +37,15 @@ namespace GRAPHIC {
 }
 
 /*以下に構造体の定義*/
-
+//敵データの構造体
+typedef struct {
+	//カウンタ・移動パターン・敵の種類
+	int cnt, pattern, knd;
+	//初期座標と移動速度
+	double x, y, v;
+	//弾幕開始時間・弾幕の種類・色・体力・弾の種類・停滞時間
+	int bltime, blknd, col, hp, blknd2, wait;
+}enemy_order_t;
 //プレイヤーの構造体
 typedef struct {
 	double x, y;//座標
@@ -77,12 +85,7 @@ typedef struct EnemyBullet {
 //敵の構造体
 typedef struct {
 	double x, y;//座標
-	double vx, vy;//速度
-	int hp;//ヒットポイント
-	double r;//半径
-	int size_x, size_y;//画像の大きさ
-	double exRate;//拡大率
-	int *graph;//画像ハンドル(2コマ分)
+	EnemyPtn ptn;//パターン
 }Enemy;
 
 //敵の構造体リスト
