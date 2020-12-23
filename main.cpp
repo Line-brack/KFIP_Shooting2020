@@ -51,65 +51,6 @@ void drawHPCircle(double x, double y, double hp_per, double size_per);
 void drawUI(Player p);
 void gameStage1( Player *p);
 void gameEnd(Player *p);
-/*namespace movPattern {
-	//moveのパターン
-	typedef struct {
-		//x,yは座標,vx,vyは各方向の速度
-		double x,y,vx,vy;
-	}constant;
-
-	typedef struct {
-		constant base;//等速のパラメータ
-		//ax,ayは各方向の加速度,vkx,vkyは各方向の終端速度
-		double ax, ay,vkx,vky;
-	}accelarate;
-
-	typedef struct {
-		constant base;//等速のパラメータ
-		//t0停滞開始時刻,dt停滞時間
-		int t0,dt;
-	}back;
-
-	constant init(double x,double y,double v,int theta);
-	accelarate init(double x, double y, double v,double vk, int theta,double a);
-	back init(double x, double y, double v, int theta, int t0, int dt);
-}
-namespace barragePattern {
-	//barrageのパターン
-	typedef struct {
-		//x,yは座標,vx,vyは各方向の速度
-		double x, y, vx, vy;
-		//damageは弾の威力
-		int damage;
-	}single;
-
-	typedef struct {
-		single base;//等速のパラメータ
-		//ax,ayは各方向の加速度,vkx,vkyは各方向の終端速度
-		double ax, ay, vkx, vky;
-	}singleAcc;
-	single init(double x, double y, double v, int theta,int damage);
-	singleAcc init(double x, double y, double v, double vk, int theta, double a,int damage);
-}
-
-enum Move {
-	constant,
-	accelarate,
-	back
-};
-enum Barrage {
-	single,
-	singleAcc,
-	singleRand,
-};
-template<typename T>
-void genEnemy(int cnt,Move movPattern, Barrage barPattern,int EnemHandle,T param);
-template<typename T>
-void genEnemy(int cnt, Move movPattern, Barrage barPattern, int EnemHandle, T param) {
-	switch(Move){
-		
-	}
-}*/
 //動作パターンの構造体
 namespace MOVE {
 	enum MoveType {
