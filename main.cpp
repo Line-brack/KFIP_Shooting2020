@@ -14,9 +14,36 @@ enum Scene {
 	stage1,
 	ending
 };
-typedef struct{
-	int circle;
-}Graphic;
+
+//画像情報の初期化(handleは更新しない)
+Graphic initGraph(const char *path,int width,int height,int numSliceX,int numSliceY ) {
+	Graphic g = { path,width,height,numSliceX,numSliceY };
+	return g;
+}
+//Graphicをロードしてハンドルを取得する関数
+void getHandle(Graphic *g) {
+	const int num = g->numSliceX*g->numSliceY;
+	//サイズ分の画像ハンドルを確保
+	g->handle = (int *)malloc(sizeof(int)*num);
+	if (num == 1) {
+		g->handle[0] =  LoadGraph(g->path) ;
+	}
+	else {
+		LoadDivGraph(g->path, num, g->numSliceX, g->numSliceY, g->width/g->numSliceX, g->height / g->numSliceY, g->handle);
+	}
+}
+//画像の一括ロード
+void loadGraphs() {
+	using namespace GRAPHIC;
+	getHandle(&player);
+	getHandle(&fairy);
+	getHandle(&circleGage);
+	fairyB[0] = fairy.handle[0];
+	fairyB[1] = fairy.handle[1];
+	fairyR[0] = fairy.handle[2];
+	fairyR[1] = fairy.handle[3];
+}
+
 //リストのポインタ
 PBullet *pbHead = NULL;//プレイヤーの弾の空リスト(先頭)を作成
 PBullet *pbTail = NULL;//プレイヤーの弾の空リスト(末尾)を作成
@@ -26,7 +53,6 @@ EBullet *ebHead = NULL;//敵弾の空リスト(先頭)を作成
 EBullet *ebTail = NULL;//敵弾の空リスト(末尾)を作成
 /*構造体のポインタ*/
 Key *keys;//キー構造体のポインタ
-Graphic *gphandle;//画像ハンドル構造体
 
 /*以下に関数のプロトタイプ宣言を書く*/
 Player initializePlayer();
@@ -46,25 +72,10 @@ void collisionEnemyAndPlayerShot();
 void collisionPlayerAndEnemy(Player *p);
 void collisionPlayerAndEnemyShot(Player *p);
 void drawHPBar(double x, double y, double hp_per,int vertical);
-void loadGraphHandles();
 void drawHPCircle(double x, double y, double hp_per, double size_per);
 void drawUI(Player p);
 void gameStage1( Player *p);
 void gameEnd(Player *p);
-//動作パターンの構造体
-namespace MOVE {
-	enum MoveType {
-		constant,
-		accelarate,
-		stop
-	};
-}
-
-typedef struct {
-	MOVE::MoveType ptn;
-	double vx, vy, ax, ay;
-	int dt;
-}MovePtn;
 MovePtn initMoveConstant(double v,int degree) {
 	using namespace MOVE;
 	double cos0 = cos(degree / 180.0*PI);
@@ -85,18 +96,7 @@ MovePtn initMoveStop(int dt) {
 	move.dt = dt;
 	return move;
 }
-//弾のパターンの構造体
-namespace BULLET {
-	enum BulletType {
-		constant,
-		accelarate
-	};
-}
-typedef struct {
-	BULLET::BulletType ptn;
-	double vx, vy, ax, ay;
-	int damage, color;
-}BulletPtn;
+
 BulletPtn initBulletConstant(double v, int degree,int color=COLOR::white,int damage=1) {
 	using namespace BULLET;
 	double cos0 = cos(degree / 180.0*PI);
@@ -113,14 +113,13 @@ BulletPtn initBulletAccelarate(double v,double a, int degree, int color = COLOR:
 	bullet.damage = damage, bullet.color = color;
 	return bullet;
 }
-//敵パターンの構造体
-typedef struct {
-	MovePtn move;
-	BulletPtn bullet;
-	int hp,handle;
-}EnemyPtn;
-EnemyPtn initEnemy(int hp,MovePtn mv, BulletPtn bl,int handle=NULL) {
-	EnemyPtn e = { mv,bl,hp,handle };
+
+EnemyPtn initEnemy(int hp,MovePtn mv, BulletPtn bl,Graphic enemy,double exRate=0.5) {
+	EnemyPtn e = { mv,bl,hp};
+	e.gpHandle=enemy.handle;
+	e.sizeX = enemy.width / (double)enemy.numSliceX *exRate;
+	e.sizeY = enemy.width / (double)enemy.numSliceX *exRate;
+	e.exRate = exRate;
 	return e;
 }
 //stage1のパターン
@@ -132,7 +131,7 @@ namespace STG1 {
 	BulletPtn bl1 = initBulletConstant(1, 90);
 	BulletPtn bl2 = initBulletAccelarate(2,-0.01 ,90);
 	//敵のパターン
-	EnemyPtn fairy1 = initEnemy(10,mv1,bl1);
+	EnemyPtn fairy1 = initEnemy(10,mv1,bl1,GRAPHIC::fairy);
 }
 //WorldCounter
 typedef struct {
@@ -151,7 +150,7 @@ int genEnemies(int *cnt, double *x, double *y, EnemyPtn *ePtn,int n=1) {
 	if (n == counter->index)return 0;
 	while (cnt[counter->index] == counter->count) {
 		int i = counter->index;
-		Enemy e = { x[i],y[i],ePtn[i] };
+		Enemy e = { x[i],y[i],ePtn[i],ePtn[i].sizeX};
 		addEnemy(e);
 		counter->index++;
 		if (n == counter->index)break;
@@ -164,18 +163,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ChangeWindowMode(TRUE); // ウィンドウモードに設定
 	DxLib_Init(); // DXライブラリ初期化処理
 	SetDrawScreen(DX_SCREEN_BACK);//描画先を裏画面にする
-
+	
 	keys = (Key*)malloc(sizeof(Key));//キー入力の状態を格納する構造体
 	GetHitKeyStateAll(keys->nowKeys);//最初のキー入力の状態を初期化
 	Scene scene = start;
 	/*以下に初期化処理を書く*/
+	//画像ハンドルの一括ロード
+	loadGraphs();
 	Player p = initializePlayer();//プレイヤーの初期化
-	loadGraphHandles();//画像ハンドルのロード
-	int fairy[4];//妖精の画像ハンドル
-	LoadDivGraph("graphic/fairy.png", 4, 2, 2, 100, 100, fairy);
-	int fairy1[2] = { fairy[0],fairy[1] };//青色の妖精
-	int fairy2[2] = { fairy[2],fairy[3] };//赤色の妖精
-
+	initWldCounter();
 
 	
 				  /*メインループ*/
@@ -193,7 +189,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			if (keys->nowKeys[KEY_INPUT_SPACE])scene = stage1;
 			break;
 		case stage1:
-			gameStage1(&p,fairy1,fairy2);
+			gameStage1(&p);
 			if (p.hp == 0)scene = ending;
 			break;
 		case ending:
@@ -237,7 +233,6 @@ void gameStage1(Player *p) {
 
 	//ここから弾を生み出す処理
 	createPlayerShot(p);
-	createEnemyShot(*p);
 	collisionEnemyAndPlayerShot();//敵-プレイヤー弾のコリジョン処理
 	collisionPlayerAndEnemyShot(p);//プレイヤー-敵弾のコリジョン処理
 	collisionPlayerAndEnemy(p);//プレイヤー-敵のコリジョン処理
@@ -250,13 +245,8 @@ void gameEnd(Player *p) {
 	delAllEnemyBullet();
 	free(keys);
 	free(p->graph);
-	free(gphandle);
 }
-void loadGraphHandles() {
-	using namespace GRAPHIC;
-	gphandle =(Graphic*) malloc(sizeof(Graphic));
-	gphandle->circle = LoadGraph(circle);
-}
+
 //HPバーの描画
 void drawHPBar(double x, double y, double hp_per,int vertical=1) {
 	if (vertical) {
@@ -270,9 +260,10 @@ void drawHPBar(double x, double y, double hp_per,int vertical=1) {
 }
 //円形HPの描画
 void drawHPCircle(double x, double y, double hp_per,double size_per) {
-	DrawCircleGauge(x, y, 100, gphandle->circle, 0, size_per, 1, 0);
+	int graph = GRAPHIC::circleGage.handle[0];
+	DrawCircleGauge(x, y, 100, graph, 0, size_per, 1, 0);
 	SetDrawBright(0, 255, 0);
-	DrawCircleGauge(x, y, hp_per * 100, gphandle->circle, 0, size_per, 1, 0);
+	DrawCircleGauge(x, y, hp_per * 100, graph, 0, size_per, 1, 0);
 	SetDrawBright(255, 255, 255);
 }
 void drawUI(Player p) {
@@ -297,7 +288,7 @@ void collisionEnemyAndPlayerShot() {
 		pb = pbHead;
 		while (pb != NULL) {
 			if (onCollisionCircle(e->e, pb->s)) {
-				e->e.hp -= 3;//敵HPを減らす
+				e->e.ptn.hp -= 3;//敵HPを減らす
 				pb = delPlayerBullet(pb);
 			}
 			else
@@ -322,7 +313,7 @@ void collisionPlayerAndEnemy(Player *p) {
 	while (e != NULL) {
 		if (onCollisionCircle(e->e, *p)) {
 			p->hp -= 2;//プレイヤーHPを減らす
-			e->e.hp -= 10;
+			e->e.ptn.hp -= 10;
 		}
 		e = e->next;
 	}
@@ -333,8 +324,8 @@ Player initializePlayer() {
 	const int scount = 0, index = 1;//隠しパラメータの初期化
 									//プレイヤーの構造体と初期化
 	Player p = { x,y,hp,r,s_x,s_y ,v,exrate,interval, scount ,index };
-	p.graph = (int*)malloc(sizeof(int) * 9);
-	LoadDivGraph(path, 9, 3, 3, s_x, s_y, p.graph);
+	using namespace GRAPHIC;
+	p.graph = player.handle;
 	return p;
 }
 //キー構造体の更新
@@ -502,10 +493,10 @@ void drawEnemy() {
 	while (itr != NULL) {//末尾まで回す
 						 //画像の描画
 		if (counter->count % 30 < 15) {
-			DrawRotaGraph(itr->e.x, itr->e.y, itr->e.exRate, 0, itr->e.graph[0], 1);
+			DrawRotaGraph(itr->e.x, itr->e.y, itr->e.ptn.exRate, 0, itr->e.ptn.gpHandle[0], 1);
 		}
 		else {
-			DrawRotaGraph(itr->e.x, itr->e.y, itr->e.exRate, 0, itr->e.graph[1], 1);
+			DrawRotaGraph(itr->e.x, itr->e.y, itr->e.ptn.exRate, 0, itr->e.ptn.gpHandle[1], 1);
 		}
 		drawHPCircle(itr->e.x, itr->e.y, itr->e.ptn.hp / 100.0,0.4);
 		itr = itr->next;//進める
@@ -517,10 +508,20 @@ void drawEnemy() {
 void calcEnemy() {
 	Elist *itr = eHead;
 	while (itr != NULL) {//末尾まで
-		itr->e.x += itr->e.ptn.move;//x方向の移動
-		itr->e.y += itr->e.vy;//y方向の移動
-
-		if (itr->e.hp>0 && isInWall(itr->e.x, itr->e.y, 100)) {//生きているかつ範囲内にいる場合
+		using namespace MOVE;
+		Enemy *e = &itr->e;
+		switch (e->ptn.move.ptn) {
+		accelarate:
+			e->ptn.move.vx += e->ptn.move.ax;
+			e->ptn.move.vy += e->ptn.move.ay;
+		constant:
+			e->x += e->ptn.move.vx;
+			e->y += e->ptn.move.vy;
+			break;
+		stop:
+			break;
+		}
+		if (itr->e.ptn.hp>0 && isInWall(itr->e.x, itr->e.y, 100)) {//生きているかつ範囲内にいる場合
 			itr = itr->next;//進める
 		}
 		else {//hpが0か負または画面の範囲外にいるとき

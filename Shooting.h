@@ -23,7 +23,6 @@ namespace PLAYER {
 	static const int s_x = 60;
 	static const int s_y = 100;
 	static const double exrate = 0.5;
-	static const char* path = "graphic/player_dot_rev.png";
 }
 namespace COLOR {
 	static const int white = GetColor(255, 255, 255);
@@ -32,20 +31,58 @@ namespace COLOR {
 	static const int blue = GetColor(0, 0, 255);
 	static const int gray = GetColor(128, 128, 128);
 }
-namespace GRAPHIC {
-	static const char* circle = "graphic/img_en.png";
+namespace BULLET {
+	enum BulletType {
+		constant,
+		accelarate
+	};
 }
-
-/*以下に構造体の定義*/
-//敵データの構造体
+namespace MOVE {
+	enum MoveType {
+		constant,
+		accelarate,
+		stop
+	};
+}
+/*画像データ*/
 typedef struct {
-	//カウンタ・移動パターン・敵の種類
-	int cnt, pattern, knd;
-	//初期座標と移動速度
-	double x, y, v;
-	//弾幕開始時間・弾幕の種類・色・体力・弾の種類・停滞時間
-	int bltime, blknd, col, hp, blknd2, wait;
-}enemy_order_t;
+	const char *path;
+	const int width, height;
+	const int numSliceX, numSliceY;
+	int *handle;
+}Graphic;
+//画像情報の初期化(handleは更新しない)
+Graphic initGraph(const char *path, int width, int height, int numSliceX, int numSliceY);
+
+namespace GRAPHIC {
+	Graphic player = initGraph("graphic/player_dot_rev.png", 180, 300, 3, 3);
+	Graphic fairy = initGraph("graphic/fairy.png", 200, 200, 2, 2);
+	Graphic circleGage = initGraph("graphic/img_en.png", 224, 224, 1, 1);
+	int fairyB[2];
+	int fairyR[2];
+}
+/*以下に構造体の定義*/
+//動作パターンの構造体
+typedef struct {
+	MOVE::MoveType ptn;
+	double vx, vy, ax, ay;
+	int dt;
+}MovePtn;
+//弾のパターンの構造体
+typedef struct {
+	BULLET::BulletType ptn;
+	double vx, vy, ax, ay;
+	int damage, color;
+}BulletPtn;
+//敵パターンの構造体
+typedef struct {
+	MovePtn move;
+	BulletPtn bullet;
+	int hp;
+	int *gpHandle;
+	double sizeX, sizeY;
+	double exRate;
+}EnemyPtn;
 //プレイヤーの構造体
 typedef struct {
 	double x, y;//座標
@@ -86,6 +123,7 @@ typedef struct EnemyBullet {
 typedef struct {
 	double x, y;//座標
 	EnemyPtn ptn;//パターン
+	double r;//半径
 }Enemy;
 
 //敵の構造体リスト
@@ -130,10 +168,10 @@ void delAllPlayerBullet();
 /*描画系*/
 void drawPlayer(Player *p);
 void drawPlayerBullet();
-void drawEnemy(int count);
+void drawEnemy();
 void drawEnemyBullet();
 /*更新系*/
-void movePlayer(Player *p,int count);
+void movePlayer(Player *p);
 void calcPlayerBullet();
 void calcEnemy();
 void calcEnemyBullet();
@@ -143,6 +181,6 @@ void rotate2d(double *x, double *y, double deg);
 int isInWall(double x, double y, double blank);
 double getAngle(Bullet b, Player p);
 /*create系*/
-void createPlayerShot(Player *p, int count);
-void createEnemyShot(Player p, int count);
+void createPlayerShot(Player *p);
+
 
