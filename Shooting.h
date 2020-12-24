@@ -61,6 +61,7 @@ namespace GRAPHIC {
 	int fairyB[2];
 	int fairyR[2];
 }
+
 /*以下に構造体の定義*/
 //動作パターンの構造体
 typedef struct {
@@ -83,6 +84,25 @@ typedef struct {
 	double sizeX, sizeY;
 	double exRate;
 }EnemyPtn;
+MovePtn initMoveConstant(double v, int degree);
+MovePtn initMoveAccelarate(double v, double a, int degree);
+MovePtn initMoveStop(int dt);
+BulletPtn initBulletConstant(double v, int degree, int color = COLOR::white, int damage = 1);
+BulletPtn initBulletAccelarate(double v, double a, int degree, int color = COLOR::white, int damage = 1);
+EnemyPtn initEnemy(int hp, MovePtn mv, BulletPtn bl, Graphic enemy, double exRate = 0.5);
+//stage1のパターン
+namespace STG1 {
+	//動きのパターン
+	MovePtn mvL1 = initMoveConstant(1, 45);
+	MovePtn mvR1 = initMoveConstant(2, 180-45);
+	MovePtn mv2 = initMoveAccelarate(5, 0.1, 90);
+	//弾のパターン
+	BulletPtn bl1 = initBulletConstant(1, 90);
+	BulletPtn bl2 = initBulletAccelarate(1, -0.03, -90);
+	//敵のパターン
+	EnemyPtn fairyL1 = initEnemy(100, mvL1, bl1, GRAPHIC::fairy);
+	EnemyPtn fairyR1 = initEnemy(100, mvR1, bl2, GRAPHIC::fairy);
+}
 //プレイヤーの構造体
 typedef struct {
 	double x, y;//座標
@@ -99,10 +119,8 @@ typedef struct {
 
 //弾の構造体
 typedef struct {
-	double x, y;//座標
-	double vx, vy;//速度
-	double r;//半径
-	int color;//色
+	BulletPtn ptn;
+	double x,y,r;
 }Bullet;
 
 //自弾の構造体リスト

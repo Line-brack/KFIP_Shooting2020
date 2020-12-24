@@ -42,6 +42,9 @@ void loadGraphs() {
 	fairyB[1] = fairy.handle[1];
 	fairyR[0] = fairy.handle[2];
 	fairyR[1] = fairy.handle[3];
+	using namespace STG1;
+	fairyL1.gpHandle = fairyB;
+	fairyR1.gpHandle = fairyR;
 }
 
 //リストのポインタ
@@ -96,8 +99,8 @@ MovePtn initMoveStop(int dt) {
 	move.dt = dt;
 	return move;
 }
-
-BulletPtn initBulletConstant(double v, int degree,int color=COLOR::white,int damage=1) {
+void createEnemyShot(Enemy e, double r);
+BulletPtn initBulletConstant(double v, int degree,int color,int damage) {
 	using namespace BULLET;
 	double cos0 = cos(degree / 180.0*PI);
 	double sin0 = sin(degree / 180.0*PI);
@@ -105,7 +108,7 @@ BulletPtn initBulletConstant(double v, int degree,int color=COLOR::white,int dam
 	bullet.damage = damage, bullet.color = color;
 	return bullet;
 }
-BulletPtn initBulletAccelarate(double v,double a, int degree, int color = COLOR::white, int damage = 1) {
+BulletPtn initBulletAccelarate(double v,double a, int degree, int color, int damage) {
 	using namespace BULLET;
 	double cos0 = cos(degree / 180.0*PI);
 	double sin0 = sin(degree / 180.0*PI);
@@ -114,25 +117,14 @@ BulletPtn initBulletAccelarate(double v,double a, int degree, int color = COLOR:
 	return bullet;
 }
 
-EnemyPtn initEnemy(int hp,MovePtn mv, BulletPtn bl,Graphic enemy,double exRate=0.5) {
+EnemyPtn initEnemy(int hp,MovePtn mv, BulletPtn bl,Graphic enemy,double exRate) {
 	EnemyPtn e = { mv,bl,hp};
-	e.gpHandle=enemy.handle;
 	e.sizeX = enemy.width / (double)enemy.numSliceX *exRate;
 	e.sizeY = enemy.width / (double)enemy.numSliceX *exRate;
 	e.exRate = exRate;
 	return e;
 }
-//stage1のパターン
-namespace STG1 {
-	//動きのパターン
-	MovePtn mv1 = initMoveConstant(5, 90);
-	MovePtn mv2 = initMoveAccelarate(5,0.1, 90);
-	//弾のパターン
-	BulletPtn bl1 = initBulletConstant(1, 90);
-	BulletPtn bl2 = initBulletAccelarate(2,-0.01 ,90);
-	//敵のパターン
-	EnemyPtn fairy1 = initEnemy(10,mv1,bl1,GRAPHIC::fairy);
-}
+
 //WorldCounter
 typedef struct {
 	int count;//ステージのカウンタ
@@ -147,6 +139,7 @@ void initWldCounter() {
 }
 //敵の生成関数(配列データから生成(cntは小さい順のリストを想定))
 int genEnemies(int *cnt, double *x, double *y, EnemyPtn *ePtn,int n=1) {
+	printfDx("index=%d,count=%d\n", cnt[counter->index], counter->count);
 	if (n == counter->index)return 0;
 	while (cnt[counter->index] == counter->count) {
 		int i = counter->index;
@@ -155,6 +148,7 @@ int genEnemies(int *cnt, double *x, double *y, EnemyPtn *ePtn,int n=1) {
 		counter->index++;
 		if (n == counter->index)break;
 	}
+	return 1;
 
 }
 
@@ -186,9 +180,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		case start:
 			//gameStart();
 			DrawString(CX, CY, "スペースで始まる", COLOR::white);
-			if (keys->nowKeys[KEY_INPUT_SPACE])scene = stage1;
+			if (keys->nowKeys[KEY_INPUT_SPACE]) {
+				initWldCounter();
+				scene = stage1; }
 			break;
 		case stage1:
+			
 			gameStage1(&p);
 			if (p.hp == 0)scene = ending;
 			break;
@@ -223,11 +220,11 @@ void gameStage1(Player *p) {
 	movePlayer(p);//プレイヤーの動作
 	calcPlayerBullet();
 	calcEnemyBullet();
-	int cnt[] = { 0,100,100,200,300,300,400,500,500 };
+	int cnt[] = { 10,100,100,200,300,300,400,500,500 };
 	double x[] = { 0,MX,0,MX,0,MX,0,MX,0 };
 	double y[] = { 0,10,10,20,20,30,40,40,50 };
 	using namespace STG1;
-	EnemyPtn ePtn[] = {fairy1,fairy1,fairy1,fairy1,fairy1,fairy1,fairy1,fairy1,fairy1 };
+	EnemyPtn ePtn[] = {fairyL1,fairyR1,fairyL1,fairyR1,fairyL1,fairyR1,fairyL1,fairyR1,fairyL1 };
 	int n = 9;
 	genEnemies(cnt,x,y,ePtn,n);
 
@@ -383,28 +380,12 @@ void drawEnemyBullet() {
 	EBullet *itr = ebHead;//ヘッドのポインタをコピー
 	while (itr != NULL) {//末尾まで回す
 						 //円の描画
-		DrawCircle(itr->s.x, itr->s.y, itr->s.r, itr->s.color, 1);
+		BulletPtn *ptn = &itr->s.ptn;
+		DrawCircle(itr->s.x, itr->s.y, itr->s.r, ptn->color, 1);
 		itr = itr->next;//進める
 		sum++;
 	}
 	printfDx("eBullet=%d\n", sum);//要素数を表示
-}
-void calcEnemyBullet() {
-	EBullet *itr = ebHead;
-	while (itr != NULL) {//末尾まで
-		itr->s.x += itr->s.vx;//x方向の移動
-		itr->s.y += itr->s.vy;//y方向の移動
-
-							  //範囲内
-		if (Btwn(-20, itr->s.x, MX + 20) && Btwn(-20, itr->s.y, MY + 20)) {//画面外+20のとき
-			itr = itr->next;//進める
-		}
-		else {//範囲外
-			itr = delEnemyBullet(itr);//該当の弾をEBulletから消す
-		}
-
-
-	}
 }
 
 //弾からプレイヤーへの角度を度数法で返す
@@ -441,7 +422,7 @@ void drawPlayerBullet() {
 	PBullet *itr = pbHead;//ヘッドのポインタをコピー
 	while (itr != NULL) {//末尾まで回す
 						 //円の描画
-		DrawCircle(itr->s.x, itr->s.y, itr->s.r, itr->s.color, 1);
+		DrawCircle(itr->s.x, itr->s.y, itr->s.r, itr->s.ptn.color, 1);
 		itr = itr->next;//進める
 		sum++;
 	}
@@ -450,8 +431,8 @@ void drawPlayerBullet() {
 void calcPlayerBullet() {
 	PBullet *itr = pbHead;
 	while (itr != NULL) {//末尾まで
-		itr->s.x += itr->s.vx;//x方向の移動
-		itr->s.y += itr->s.vy;//y方向の移動
+		itr->s.x += itr->s.ptn.vx;//x方向の移動
+		itr->s.y += itr->s.ptn.vy;//y方向の移動
 							  //範囲内
 		if (Btwn(-20, itr->s.x, MX + 20) && Btwn(-20, itr->s.y, MY + 20)) {//画面外+20のとき
 			itr = itr->next;//進める
@@ -473,9 +454,10 @@ void createPlayerShot(Player *p) {
 	if (!keys->nowKeys[KEY_INPUT_Z]) return;//zキーを押すかつ
 	if (!((counter->count - p->sCount) % p->interval == 0)) return;//インターバル内なら
 
-														  //以下はショットの決定と生成
-	Bullet b1 = { p->x - 10, p->y, 0, -5, 5 ,GetColor(255,0,0) };//弾データを用意
-	Bullet b2 = { p->x + 10, p->y, 0, -5, 5 ,GetColor(255,0,0) };//弾データを用意
+	//以下はショットの決定と生成
+	BulletPtn ptn = initBulletConstant(10, -90, COLOR::red, 1);
+	Bullet b1 = { ptn,p->x - 10, p->y,  5  };//弾データを用意
+	Bullet b2 = { ptn,p->x + 10, p->y,  5  };//弾データを用意
 	addPlayerBullet(b1);//弾を追加
 	addPlayerBullet(b2);//弾を追加
 }
@@ -510,16 +492,21 @@ void calcEnemy() {
 	while (itr != NULL) {//末尾まで
 		using namespace MOVE;
 		Enemy *e = &itr->e;
+		//動きの処理
 		switch (e->ptn.move.ptn) {
-		accelarate:
+		case accelarate:
 			e->ptn.move.vx += e->ptn.move.ax;
 			e->ptn.move.vy += e->ptn.move.ay;
-		constant:
+		case constant:
 			e->x += e->ptn.move.vx;
 			e->y += e->ptn.move.vy;
 			break;
-		stop:
+		case stop:
 			break;
+		}
+		//弾の生成
+		if (counter->count % 30 == 0) {
+			createEnemyShot(*e, 10);
 		}
 		if (itr->e.ptn.hp>0 && isInWall(itr->e.x, itr->e.y, 100)) {//生きているかつ範囲内にいる場合
 			itr = itr->next;//進める
@@ -530,7 +517,35 @@ void calcEnemy() {
 
 	}
 }
+void createEnemyShot(Enemy e,double r) {
+	Bullet b = {e.ptn.bullet, e.x,e.y,r };
+	addEnemyBullet(b);
+}
 
+//敵の計算処理
+void calcEnemyBullet() {
+	EBullet *itr = ebHead;
+	while (itr != NULL) {//末尾まで
+		using namespace BULLET;
+		Bullet *b = &itr->s;
+		switch (b->ptn.ptn) {
+		case accelarate:
+			b->ptn.vx += b->ptn.ax;
+			b->ptn.vy += b->ptn.ay;
+		case constant:
+			b->x += b->ptn.vx;
+			b->y += b->ptn.vy;
+			break;
+		}
+		if (isInWall(itr->s.x, itr->s.y, 20)) {
+			itr = itr->next;//進める
+		}
+		else {//画面の範囲外にいるとき
+			itr = delEnemyBullet(itr);//該当の敵をElistから消す
+		}
+
+	}
+}
 
 //敵の追加(リストの末尾に追加)
 void addEnemy(Enemy e) {
