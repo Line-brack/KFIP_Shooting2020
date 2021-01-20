@@ -8,44 +8,7 @@
 /*以下に定数の定義(define)*/
 
 /*以下に構造体の定義*/
-enum Scene {
-	start,
-	end,
-	stage1,
-	ending
-};
 
-//画像情報の初期化(handleは更新しない)
-Graphic initGraph(const char *path,int width,int height,int numSliceX,int numSliceY ) {
-	Graphic g = { path,width,height,numSliceX,numSliceY };
-	return g;
-}
-//Graphicをロードしてハンドルを取得する関数
-void getHandle(Graphic *g) {
-	const int num = g->numSliceX*g->numSliceY;
-	//サイズ分の画像ハンドルを確保
-	g->handle = (int *)malloc(sizeof(int)*num);
-	if (num == 1) {
-		g->handle[0] =  LoadGraph(g->path) ;
-	}
-	else {
-		LoadDivGraph(g->path, num, g->numSliceX, g->numSliceY, g->width/g->numSliceX, g->height / g->numSliceY, g->handle);
-	}
-}
-//画像の一括ロード
-void loadGraphs() {
-	using namespace GRAPHIC;
-	getHandle(&player);
-	getHandle(&fairy);
-	getHandle(&circleGage);
-	fairyB[0] = fairy.handle[0];
-	fairyB[1] = fairy.handle[1];
-	fairyR[0] = fairy.handle[2];
-	fairyR[1] = fairy.handle[3];
-	using namespace STG1;
-	fairyL1.gpHandle = fairyB;
-	fairyR1.gpHandle = fairyR;
-}
 
 //リストのポインタ
 PBullet *pbHead = NULL;//プレイヤーの弾の空リスト(先頭)を作成
@@ -57,100 +20,9 @@ EBullet *ebTail = NULL;//敵弾の空リスト(末尾)を作成
 /*構造体のポインタ*/
 Key *keys;//キー構造体のポインタ
 
-/*以下に関数のプロトタイプ宣言を書く*/
-Player initializePlayer();
-void updateKeys();
-//head->...->tailの末尾にnodeを追加
-template<typename T>
-void pushBack(T **node, T ** head, T **tail);
-//nodeをhead-tailのリストから消す(nodeの次のノードを返す)
-template<typename T>
-T* deleteNode(T **node, T **head, T **tail);
-//head-tailのリストのノードをすべて消去
-template<typename T>
-void deleteAllNode(T **head, T **tail);
-template<typename T, typename U>
-int onCollisionCircle(T obj1, U obj2);
-void collisionEnemyAndPlayerShot();
-void collisionPlayerAndEnemy(Player *p);
-void collisionPlayerAndEnemyShot(Player *p);
-void drawHPBar(double x, double y, double hp_per,int vertical);
-void drawHPCircle(double x, double y, double hp_per, double size_per);
-void drawUI(Player p);
-void gameStage1( Player *p);
-void gameEnd(Player *p);
-MovePtn initMoveConstant(double v,int degree) {
-	using namespace MOVE;
-	double cos0 = cos(degree / 180.0*PI);
-	double sin0 = sin(degree / 180.0*PI);
-	MovePtn move = { constant,v*cos0,v*sin0 };
-	return move;
-}
-MovePtn initMoveAccelarate(double v, double a, int degree) {
-	using namespace MOVE;
-	double cos0 = cos(degree / 180.0*PI);
-	double sin0 = sin(degree / 180.0*PI);
-	MovePtn move = { accelarate,v*cos0,v*sin0 ,a*cos0,a*sin0 };
-	return move;
-}
-MovePtn initMoveStop(int dt) {
-	using namespace MOVE;
-	MovePtn move = { stop};
-	move.dt = dt;
-	return move;
-}
-void createEnemyShot(Enemy e, double r);
-BulletPtn initBulletConstant(double v, int degree,int color,int damage) {
-	using namespace BULLET;
-	double cos0 = cos(degree / 180.0*PI);
-	double sin0 = sin(degree / 180.0*PI);
-	BulletPtn bullet = { constant,v*cos0,v*sin0 };
-	bullet.damage = damage, bullet.color = color;
-	return bullet;
-}
-BulletPtn initBulletAccelarate(double v,double a, int degree, int color, int damage) {
-	using namespace BULLET;
-	double cos0 = cos(degree / 180.0*PI);
-	double sin0 = sin(degree / 180.0*PI);
-	BulletPtn bullet = { accelarate,v*cos0,v*sin0 ,a*cos0,a*sin0};
-	bullet.damage = damage, bullet.color = color;
-	return bullet;
-}
 
-EnemyPtn initEnemy(int hp,MovePtn mv, BulletPtn bl,Graphic enemy,double exRate) {
-	EnemyPtn e = { mv,bl,hp};
-	e.sizeX = enemy.width / (double)enemy.numSliceX *exRate;
-	e.sizeY = enemy.width / (double)enemy.numSliceX *exRate;
-	e.exRate = exRate;
-	return e;
-}
 
-//WorldCounter
-typedef struct {
-	int count;//ステージのカウンタ
-	int index;//時系列敵データのインデクス
-}WldCounter;
 WldCounter *counter=NULL;
-void initWldCounter() {
-	if (!counter) {
-		counter = (WldCounter*)malloc(sizeof(WldCounter));
-	}
-	counter->count = 0, counter->index = 0;
-}
-//敵の生成関数(配列データから生成(cntは小さい順のリストを想定))
-int genEnemies(int *cnt, double *x, double *y, EnemyPtn *ePtn,int n=1) {
-	printfDx("index=%d,count=%d\n", cnt[counter->index], counter->count);
-	if (n == counter->index)return 0;
-	while (cnt[counter->index] == counter->count) {
-		int i = counter->index;
-		Enemy e = { x[i],y[i],ePtn[i],ePtn[i].sizeX};
-		addEnemy(e);
-		counter->index++;
-		if (n == counter->index)break;
-	}
-	return 1;
-
-}
 
 /*メイン関数*/
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -236,12 +108,107 @@ void gameStage1(Player *p) {
 	if (p->hp < 0) p->hp = 0;//プレイヤーのHPを-にしない
 	drawUI(*p);
 }
+BulletPtn initBulletConstant(double v, int degree, int color, int damage) {
+	using namespace BULLET;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	BulletPtn bullet = { constant,v*cos0,v*sin0 };
+	bullet.damage = damage, bullet.color = color;
+	return bullet;
+}
+BulletPtn initBulletAccelarate(double v, double a, int degree, int color, int damage) {
+	using namespace BULLET;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	BulletPtn bullet = { accelarate,v*cos0,v*sin0 ,a*cos0,a*sin0 };
+	bullet.damage = damage, bullet.color = color;
+	return bullet;
+}
+
+EnemyPtn initEnemy(int hp, MovePtn mv, BulletPtn bl, Graphic enemy, double exRate) {
+	EnemyPtn e = { mv,bl,hp };
+	e.sizeX = enemy.width / (double)enemy.numSliceX *exRate;
+	e.sizeY = enemy.width / (double)enemy.numSliceX *exRate;
+	e.exRate = exRate;
+	return e;
+}
 void gameEnd(Player *p) {
 	delAllEnemy();//一括フリー
 	delAllPlayerBullet();//一括フリー
 	delAllEnemyBullet();
 	free(keys);
 	free(p->graph);
+}
+MovePtn initMoveConstant(double v, int degree) {
+	using namespace MOVE;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	MovePtn move = { constant,v*cos0,v*sin0 };
+	return move;
+}
+MovePtn initMoveAccelarate(double v, double a, int degree) {
+	using namespace MOVE;
+	double cos0 = cos(degree / 180.0*PI);
+	double sin0 = sin(degree / 180.0*PI);
+	MovePtn move = { accelarate,v*cos0,v*sin0 ,a*cos0,a*sin0 };
+	return move;
+}
+MovePtn initMoveStop(int dt) {
+	using namespace MOVE;
+	MovePtn move = { stop };
+	move.dt = dt;
+	return move;
+}
+void initWldCounter() {
+	if (!counter) {
+		counter = (WldCounter*)malloc(sizeof(WldCounter));
+	}
+	counter->count = 0, counter->index = 0;
+}
+//敵の生成関数(配列データから生成(cntは小さい順のリストを想定))
+int genEnemies(int *cnt, double *x, double *y, EnemyPtn *ePtn, int n = 1) {
+	printfDx("index=%d,count=%d\n", cnt[counter->index], counter->count);
+	if (n == counter->index)return 0;
+	while (cnt[counter->index] == counter->count) {
+		int i = counter->index;
+		Enemy e = { x[i],y[i],ePtn[i],ePtn[i].sizeX };
+		addEnemy(e);
+		counter->index++;
+		if (n == counter->index)break;
+	}
+	return 1;
+
+}
+//画像情報の初期化(handleは更新しない)
+Graphic initGraph(const char *path, int width, int height, int numSliceX, int numSliceY) {
+	Graphic g = { path,width,height,numSliceX,numSliceY };
+	return g;
+}
+//Graphicをロードしてハンドルを取得する関数
+void getHandle(Graphic *g) {
+	const int num = g->numSliceX*g->numSliceY;
+	//サイズ分の画像ハンドルを確保
+	g->handle = (int *)malloc(sizeof(int)*num);
+	if (num == 1) {
+		g->handle[0] = LoadGraph(g->path);
+	}
+	else {
+		LoadDivGraph(g->path, num, g->numSliceX, g->numSliceY, g->width / g->numSliceX, g->height / g->numSliceY, g->handle);
+	}
+}
+//画像の一括ロード
+void loadGraphs() {
+	using namespace GRAPHIC;
+	getHandle(&player);
+	getHandle(&fairy);
+	getHandle(&circleGage);
+	fairyB[0] = fairy.handle[0];
+	fairyB[1] = fairy.handle[1];
+	fairyR[0] = fairy.handle[2];
+	fairyR[1] = fairy.handle[3];
+	using namespace STG1;
+	fairyL1.gpHandle = fairyB;
+	fairyR1.gpHandle = fairyR;
 }
 
 //HPバーの描画

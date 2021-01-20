@@ -11,6 +11,15 @@
 #define HPBAR_YSIZE 100
 #define HPBAR_X MX+50
 #define HPBAR_Y 450
+
+enum Scene {
+	start,
+	end,
+	stage1,
+	ending
+};
+
+
 namespace PLAYER {
 	//プレイヤーの初期値の設定
 	static const double x = CX;
@@ -150,7 +159,11 @@ typedef struct EnemyList {
 	struct EnemyList *before;//前のデータへのポインタ
 	struct EnemyList *next;//次のデータへのポインタ
 }Elist;
-
+//WorldCounter
+typedef struct {
+	int count;//ステージのカウンタ
+	int index;//時系列敵データのインデクス
+}WldCounter;
 
 
 //押した瞬間(pushNow),離した瞬間(pullNow),それ以外の状態(other)
@@ -170,6 +183,16 @@ typedef struct _keys {
 
 /*以下に関数のプロトタイプ宣言を書く*/
 /*リスト系*/
+//汎用
+//head->...->tailの末尾にnodeを追加
+template<typename T>
+void pushBack(T **node, T ** head, T **tail);
+//nodeをhead-tailのリストから消す(nodeの次のノードを返す)
+template<typename T>
+T* deleteNode(T **node, T **head, T **tail);
+//head-tailのリストのノードをすべて消去
+template<typename T>
+void deleteAllNode(T **head, T **tail);
 //敵
 void addEnemy(Enemy e);
 Elist* delEnemy(Elist *p);
@@ -184,6 +207,9 @@ PBullet* delPlayerBullet(PBullet *p);
 void delAllPlayerBullet();
 
 /*描画系*/
+void drawHPBar(double x, double y, double hp_per, int vertical);
+void drawHPCircle(double x, double y, double hp_per, double size_per);
+void drawUI(Player p);
 void drawPlayer(Player *p);
 void drawPlayerBullet();
 void drawEnemy();
@@ -200,5 +226,40 @@ int isInWall(double x, double y, double blank);
 double getAngle(Bullet b, Player p);
 /*create系*/
 void createPlayerShot(Player *p);
+void createEnemyShot(Enemy e, double r);
+int genEnemies(int *cnt, double *x, double *y, EnemyPtn *ePtn, int n);
+/*自機*/
+Player initializePlayer();
+/*敵*/
+/*キー入力*/
+void updateKeys();
+/*当たり判定*/
+template<typename T, typename U>
+int onCollisionCircle(T obj1, U obj2);
+void collisionEnemyAndPlayerShot();
+void collisionPlayerAndEnemy(Player *p);
+void collisionPlayerAndEnemyShot(Player *p);
+/*ゲーム進行*/
+void gameStage1(Player *p);
+void gameEnd(Player *p);
+/*画像*/
+
+Graphic initGraph(const char *path, int width, int height, int numSliceX, int numSliceY);
+void getHandle(Graphic *g);
+void loadGraphs();
+/*パターン*/
+//動き
+MovePtn initMoveConstant(double v, int degree);
+MovePtn initMoveAccelarate(double v, double a, int degree);
+MovePtn initMoveStop(int dt);
+//弾
+BulletPtn initBulletConstant(double v, int degree, int color, int damage);
+BulletPtn initBulletAccelarate(double v, double a, int degree, int color, int damage);
+//敵
+EnemyPtn initEnemy(int hp, MovePtn mv, BulletPtn bl, Graphic enemy, double exRate);
+//ワールドカウンター
+void initWldCounter();
+
+
 
 
