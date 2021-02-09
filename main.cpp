@@ -1,6 +1,7 @@
 //編集：田上慶治
 #include "DxLib.h"
 #include <math.h>
+#include "Bullet.h"
 #include "Shooting.h"
 
 
@@ -11,12 +12,10 @@
 
 
 //リストのポインタ
-PBullet *pbHead = NULL;//プレイヤーの弾の空リスト(先頭)を作成
-PBullet *pbTail = NULL;//プレイヤーの弾の空リスト(末尾)を作成
+
 Elist *eHead = NULL;//敵の空リスト(先頭)を作成
 Elist *eTail = NULL;//敵の空リスト(末尾)を作成
-EBullet *ebHead = NULL;//敵弾の空リスト(先頭)を作成
-EBullet *ebTail = NULL;//敵弾の空リスト(末尾)を作成
+
 /*構造体のポインタ*/
 Key *keys;//キー構造体のポインタ
 
@@ -97,6 +96,7 @@ void gameStage1(Player *p) {
 	double y[] = { 0,10,10,20,20,30,40,40,50 };
 	using namespace STG1;
 	EnemyPtn ePtn[] = {fairyL1,fairyR1,fairyL1,fairyR1,fairyL1,fairyR1,fairyL1,fairyR1,fairyL1 };
+	
 	int n = 9;
 	genEnemies(cnt,x,y,ePtn,n);
 
@@ -107,22 +107,6 @@ void gameStage1(Player *p) {
 	collisionPlayerAndEnemy(p);//プレイヤー-敵のコリジョン処理
 	if (p->hp < 0) p->hp = 0;//プレイヤーのHPを-にしない
 	drawUI(*p);
-}
-BulletPtn initBulletConstant(double v, int degree, int color, int damage) {
-	using namespace BULLET;
-	double cos0 = cos(degree / 180.0*PI);
-	double sin0 = sin(degree / 180.0*PI);
-	BulletPtn bullet = { constant,v*cos0,v*sin0 };
-	bullet.damage = damage, bullet.color = color;
-	return bullet;
-}
-BulletPtn initBulletAccelarate(double v, double a, int degree, int color, int damage) {
-	using namespace BULLET;
-	double cos0 = cos(degree / 180.0*PI);
-	double sin0 = sin(degree / 180.0*PI);
-	BulletPtn bullet = { accelarate,v*cos0,v*sin0 ,a*cos0,a*sin0 };
-	bullet.damage = damage, bullet.color = color;
-	return bullet;
 }
 
 EnemyPtn initEnemy(int hp, MovePtn mv, BulletPtn bl, Graphic enemy, double exRate) {
@@ -300,116 +284,16 @@ void updateKeys() {
 		keys->state[i] = (KeyState)(keys->nowKeys[i] - keys->preKeys[i]);//パルスの検出→押した瞬間,離した瞬間を状態として格納
 }
 
-/*以下に関数の定義を書く*/
-template<typename T>
-void pushBack(T **node, T ** head, T **tail) {
-	(*node)->next = NULL;//追加ノードの次はNULL
-
-	if (*head == NULL) //空のリストの場合
-		*head = *node;//ヘッドは追加ノードを指す
-	if (*tail)//末尾のノードが既にあるとき
-		(*tail)->next = *node;//前ノードの先を追加ノードに
-	(*node)->before = *tail;//追加ノードの前を前ノードに
-	*tail = *node;//Tailは最後のノードを指す
-}
-template<typename T>
-T* deleteNode(T **node, T **head, T **tail) {
-	T * pReturn = (*node)->next;//一個先のノードを指すポインタの用意
-	if ((*node)->before)//ノードが先頭でないとき
-		(*node)->before->next = pReturn;//一個前の次を一個先のノードにする
-	else
-		*head = pReturn;//ヘッドの指すノードを一個先にする
-
-	if (pReturn)//pが末尾を指さないとき
-		pReturn->before = (*node)->before;//一個先のノードから2個前のノードをつなぐ
-	else//pが末尾を指すとき
-		*tail = (*node)->before;//テールは前のノードを指す
-
-	free(*node);//ノードを消す
-	return pReturn;//次のポインタを返す
-
-}
-template<typename T>
-void deleteAllNode(T **head, T **tail) {
-	T *p, *pnext;//ポインタを2つ用意
-	pnext = *head;//ヘッドのノードを指す
-	while (pnext) {//ノードがなくなるまで繰り返す
-		p = pnext;//pを進める
-		pnext = p->next;//pnextを進める
-		free(p);//pのノードを開放
-	}
-	*head = NULL;//ヌル
-	*tail = NULL;//ヌル
-}
-
-void drawEnemyBullet() {
-	int sum = 0;//リストの要素数
-	EBullet *itr = ebHead;//ヘッドのポインタをコピー
-	while (itr != NULL) {//末尾まで回す
-						 //円の描画
-		BulletPtn *ptn = &itr->s.ptn;
-		DrawCircle(itr->s.x, itr->s.y, itr->s.r, ptn->color, 1);
-		itr = itr->next;//進める
-		sum++;
-	}
-	printfDx("eBullet=%d\n", sum);//要素数を表示
-}
-
 //弾からプレイヤーへの角度を度数法で返す
 double getAngle(Bullet b, Player p) {
 	double rad = atan2(p.y - b.y, p.x - b.x);
 	return 180 * rad / PI;
 }
-//敵の弾の追加(リストの末尾に追加)
-void addEnemyBullet(Bullet b) {
-	//新しいnodeデータ
-	EBullet *pnode = (EBullet *)malloc(sizeof(EBullet));
-	pnode->s = b;//新たなノードにデータを入れる
-	pushBack(&pnode, &ebHead, &ebTail);//末尾に追加
-
-}
-
-//敵弾の削除
-//引数：削除するノードを指すポインタ
-//戻値：次のポインタ
-EBullet* delEnemyBullet(EBullet *p) {
-	return deleteNode(&p, &ebHead, &ebTail);
-}
-
-//敵弾リスト全体を消去
-void delAllEnemyBullet() {
-	deleteAllNode(&ebHead, &ebTail);
-}
 
 
 
 
-void drawPlayerBullet() {
-	int sum = 0;//リストの要素数
-	PBullet *itr = pbHead;//ヘッドのポインタをコピー
-	while (itr != NULL) {//末尾まで回す
-						 //円の描画
-		DrawCircle(itr->s.x, itr->s.y, itr->s.r, itr->s.ptn.color, 1);
-		itr = itr->next;//進める
-		sum++;
-	}
-	printfDx("pBullet=%d\n", sum);//要素数を表示
-}
-void calcPlayerBullet() {
-	PBullet *itr = pbHead;
-	while (itr != NULL) {//末尾まで
-		itr->s.x += itr->s.ptn.vx;//x方向の移動
-		itr->s.y += itr->s.ptn.vy;//y方向の移動
-							  //範囲内
-		if (Btwn(-20, itr->s.x, MX + 20) && Btwn(-20, itr->s.y, MY + 20)) {//画面外+20のとき
-			itr = itr->next;//進める
-		}
-		else {//範囲外
-			itr = delPlayerBullet(itr);//該当の弾をPBulletから消す
-		}
 
-	}
-}
 
 void createPlayerShot(Player *p) {
 	int isPush = keys->state[KEY_INPUT_Z] == pushNow;//zを押したか
@@ -514,48 +398,7 @@ void calcEnemyBullet() {
 	}
 }
 
-//敵の追加(リストの末尾に追加)
-void addEnemy(Enemy e) {
-	// 新しいnodeデータ
-	Elist *pnode = (Elist *)malloc(sizeof(Elist));
-	pnode->e = e;//新たなノードにデータを入れる
-	pushBack(&pnode, &eHead, &eTail);//末尾に追加
 
-}
-
-//敵の削除
-//引数：削除するノードを指すポインタ
-//戻値：次のポインタ
-Elist* delEnemy(Elist *p) {
-	return deleteNode(&p, &eHead, &eTail);
-}
-
-//リスト全体を消去
-void delAllEnemy() {
-	deleteAllNode(&eHead, &eTail);
-}
-
-//プレイヤーの弾の追加(リストの末尾に追加)
-void addPlayerBullet(Bullet b) {
-	// 新しいnodeデータ
-	PBullet *pnode = (PBullet *)malloc(sizeof(PBullet));
-	pnode->s = b;//新たなノードにデータを入れる
-	pushBack(&pnode, &pbHead, &pbTail);//末尾に追加
-
-}
-
-//弾の削除
-//引数：削除するノードを指すポインタ
-//戻値：次のポインタ
-PBullet* delPlayerBullet(PBullet *p) {
-	return deleteNode(&p, &pbHead, &pbTail);
-
-}
-
-//リスト全体を消去
-void delAllPlayerBullet() {
-	deleteAllNode(&pbHead, &pbTail);
-}
 
 // p1からp2の範囲にpがあるとき1を返す
 int Btwn(int p1, int p, int p2) {

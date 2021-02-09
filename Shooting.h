@@ -40,12 +40,7 @@ namespace COLOR {
 	static const int blue = GetColor(0, 0, 255);
 	static const int gray = GetColor(128, 128, 128);
 }
-namespace BULLET {
-	enum BulletType {
-		constant,
-		accelarate
-	};
-}
+
 namespace MOVE {
 	enum MoveType {
 		constant,
@@ -72,46 +67,9 @@ namespace GRAPHIC {
 }
 
 /*以下に構造体の定義*/
-//動作パターンの構造体
-typedef struct {
-	MOVE::MoveType ptn;
-	double vx, vy, ax, ay;
-	int dt;
-}MovePtn;
-//弾のパターンの構造体
-typedef struct {
-	BULLET::BulletType ptn;
-	double vx, vy, ax, ay;
-	int damage, color;
-}BulletPtn;
-//敵パターンの構造体
-typedef struct {
-	MovePtn move;
-	BulletPtn bullet;
-	int hp;
-	int *gpHandle;
-	double sizeX, sizeY;
-	double exRate;
-}EnemyPtn;
-MovePtn initMoveConstant(double v, int degree);
-MovePtn initMoveAccelarate(double v, double a, int degree);
-MovePtn initMoveStop(int dt);
-BulletPtn initBulletConstant(double v, int degree, int color = COLOR::white, int damage = 1);
-BulletPtn initBulletAccelarate(double v, double a, int degree, int color = COLOR::white, int damage = 1);
-EnemyPtn initEnemy(int hp, MovePtn mv, BulletPtn bl, Graphic enemy, double exRate = 0.5);
-//stage1のパターン
-namespace STG1 {
-	//動きのパターン
-	MovePtn mvL1 = initMoveConstant(1, 45);
-	MovePtn mvR1 = initMoveConstant(2, 180-45);
-	MovePtn mv2 = initMoveAccelarate(5, 0.1, 90);
-	//弾のパターン
-	BulletPtn bl1 = initBulletConstant(1, 90);
-	BulletPtn bl2 = initBulletAccelarate(1, -0.03, -90);
-	//敵のパターン
-	EnemyPtn fairyL1 = initEnemy(100, mvL1, bl1, GRAPHIC::fairy);
-	EnemyPtn fairyR1 = initEnemy(100, mvR1, bl2, GRAPHIC::fairy);
-}
+
+
+
 //プレイヤーの構造体
 typedef struct {
 	double x, y;//座標
@@ -126,39 +84,11 @@ typedef struct {
 	int *graph;//画像ハンドル
 }Player;
 
-//弾の構造体
-typedef struct {
-	BulletPtn ptn;
-	double x,y,r;
-}Bullet;
 
-//自弾の構造体リスト
-typedef struct PlayerBullet {
-	Bullet s;//プレイヤーのショットデータ
-	struct PlayerBullet *before;//前のデータへのポインタ
-	struct PlayerBullet *next;//次のデータへのポインタ
-}PBullet;
 
-//敵弾のリスト
-typedef struct EnemyBullet {
-	Bullet s;//弾データ
-	struct EnemyBullet *before;//前のデータへのポインタ
-	struct EnemyBullet *next;//次のデータへのポインタ
-}EBullet;
 
-//敵の構造体
-typedef struct {
-	double x, y;//座標
-	EnemyPtn ptn;//パターン
-	double r;//半径
-}Enemy;
 
-//敵の構造体リスト
-typedef struct EnemyList {
-	Enemy e;//敵データ
-	struct EnemyList *before;//前のデータへのポインタ
-	struct EnemyList *next;//次のデータへのポインタ
-}Elist;
+
 //WorldCounter
 typedef struct {
 	int count;//ステージのカウンタ
@@ -182,29 +112,6 @@ typedef struct _keys {
 
 
 /*以下に関数のプロトタイプ宣言を書く*/
-/*リスト系*/
-//汎用
-//head->...->tailの末尾にnodeを追加
-template<typename T>
-void pushBack(T **node, T ** head, T **tail);
-//nodeをhead-tailのリストから消す(nodeの次のノードを返す)
-template<typename T>
-T* deleteNode(T **node, T **head, T **tail);
-//head-tailのリストのノードをすべて消去
-template<typename T>
-void deleteAllNode(T **head, T **tail);
-//敵
-void addEnemy(Enemy e);
-Elist* delEnemy(Elist *p);
-void delAllEnemy();
-//敵弾
-void addEnemyBullet(Bullet b);
-EBullet* delEnemyBullet(EBullet *p);
-void delAllEnemyBullet();
-//プレイヤー弾
-void addPlayerBullet(Bullet b);
-PBullet* delPlayerBullet(PBullet *p);
-void delAllPlayerBullet();
 
 /*描画系*/
 void drawHPBar(double x, double y, double hp_per, int vertical);
@@ -252,11 +159,8 @@ void loadGraphs();
 MovePtn initMoveConstant(double v, int degree);
 MovePtn initMoveAccelarate(double v, double a, int degree);
 MovePtn initMoveStop(int dt);
-//弾
-BulletPtn initBulletConstant(double v, int degree, int color, int damage);
-BulletPtn initBulletAccelarate(double v, double a, int degree, int color, int damage);
-//敵
-EnemyPtn initEnemy(int hp, MovePtn mv, BulletPtn bl, Graphic enemy, double exRate);
+
+
 //ワールドカウンター
 void initWldCounter();
 
